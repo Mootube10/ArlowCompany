@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ControlCore Platform</title>
+  <style>
+    :root {
+      --bg: #121212;
+      --fg: #ffffff;
+      --accent: #00bcd4;
+      --panel: #1e1e1e;
+    }
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: var(--bg);
+      color: var(--fg);
+    }
+    header, nav, section {
+      padding: 1rem;
+    }
+    header {
+      background: var(--panel);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    nav {
+      background: var(--panel);
+      display: flex;
+      gap: 1rem;
+    }
+    nav button {
+      background: var(--accent);
+      border: none;
+      padding: 0.5rem 1rem;
+      color: #fff;
+      cursor: pointer;
+    }
+    #app > section {
+      display: none;
+    }
+    #app > section.active {
+      display: block;
+    }
+    .log-entry, .message, .task {
+      background: #222;
+      padding: 1rem;
+      margin: 0.5rem 0;
+      border-left: 4px solid var(--accent);
+    }
+    input, select, textarea {
+      background: #2c2c2c;
+      border: none;
+      color: #fff;
+      padding: 0.5rem;
+      width: 100%;
+      margin: 0.5rem 0;
+    }
+    button.submit {
+      background: var(--accent);
+      border: none;
+      padding: 0.5rem 1rem;
+      color: #fff;
+      margin-top: 0.5rem;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <div id="login">
+    <h2>Login</h2>
+    <input type="text" id="username" placeholder="Username" />
+    <select id="role">
+      <option value="Admin">Admin</option>
+      <option value="Moderator">Moderator</option>
+      <option value="Developer">Developer</option>
+    </select>
+    <button onclick="login()">Login</button>
+  </div>
+
+  <div id="app" style="display:none;">
+    <header>
+      <div id="welcome"></div>
+      <button onclick="logout()">Logout</button>
+    </header>
+    <nav>
+      <button onclick="switchSection('dashboard')">Dashboard</button>
+      <button onclick="switchSection('activity')">Activity</button>
+      <button onclick="switchSection('inbox')">Inbox</button>
+      <button onclick="switchSection('tasks')">Tasks</button>
+      <button onclick="switchSection('staff')">Staff</button>
+      <button onclick="switchSection('profile')">Profile</button>
+    </nav>
+    <section id="dashboard" class="active">
+      <h2>Dashboard</h2>
+      <p>Welcome to your control panel.</p>
+    </section>
+    <section id="activity">
+      <h2>Activity Log</h2>
+      <textarea id="activityInput" placeholder="Log something..."></textarea>
+      <button class="submit" onclick="addActivity()">Add Entry</button>
+      <div id="activityLog"></div>
+    </section>
+    <section id="inbox">
+      <h2>Inbox</h2>
+      <textarea id="messageInput" placeholder="Compose a message..."></textarea>
+      <button class="submit" onclick="sendMessage()">Send Message</button>
+      <div id="inboxMessages"></div>
+    </section>
+    <section id="tasks">
+      <h2>Task Manager</h2>
+      <input id="taskTitle" placeholder="Task title" />
+      <textarea id="taskDesc" placeholder="Task description..."></textarea>
+      <button class="submit" onclick="addTask()">Add Task</button>
+      <div id="taskList"></div>
+    </section>
+    <section id="staff">
+      <h2>Staff Directory</h2>
+      <div id="staffList"></div>
+    </section>
+    <section id="profile">
+      <h2>Profile Settings</h2>
+      <p id="profileInfo"></p>
+    </section>
+  </div>
+
+  <script>
+    let currentUser = null;
+
+    function login() {
+      const user = document.getElementById('username').value;
+      const role = document.getElementById('role').value;
+      if (user) {
+        currentUser = { name: user, role: role };
+        localStorage.setItem('currentUser', JSON.stringify(currentUser));
+        initApp();
+      }
+    }
+
+    function logout() {
+      localStorage.removeItem('currentUser');
+      location.reload();
+    }
+
+    function switchSection(id) {
+      document.querySelectorAll('#app > section').forEach(sec => sec.classList.remove('active'));
+      document.getElementById(id).classList.add('active');
+    }
+
+    function initApp() {
+      document.getElementById('login').style.display = 'none';
+      document.getElementById('app').style.display = 'block';
+      document.getElementById('welcome').innerText = `Welcome, ${currentUser.name} (${currentUser.role})`;
+      document.getElementById('profileInfo').innerText = `Name: ${currentUser.name}\nRole: ${currentUser.role}`;
+      loadStaff();
+      loadActivity();
+      loadMessages();
+      loadTasks();
+    }
+
+    function loadStaff() {
+      let staff = JSON.parse(localStorage.getItem('staff')) || [];
+      if (!staff.find(s => s.name === currentUser.name)) {
+        staff.push(currentUser);
+        localStorage.setItem('staff', JSON.stringify(staff));
+      }
+      const list = staff.map(s => `<div>${s.name} - ${s.role}</div>`).join('');
+      document.getElementById('staffList').innerHTML = list;
+    }
+
+    function addActivity() {
+      const input = document.getElementById('activityInput').value;
+      if (input) {
+        const log = JSON.parse(localStorage.getItem('activity')) || [];
+        log.unshift(`${new Date().toLocaleString()} - ${currentUser.name}: ${input}`);
+        localStorage.setItem('activity', JSON.stringify(log));
+        document.getElementById('activityInput').value = '';
+        loadActivity();
+      }
+    }
+
+    function loadActivity() {
+      const log = JSON.parse(localStorage.getItem('activity')) || [];
+      document.getElementById('activityLog').innerHTML = log.map(entry => `<div class='log-entry'>${entry}</div>`).join('');
+    }
+
+    function sendMessage() {
+      const msg = document.getElementById('messageInput').value;
+      if (msg) {
+        const inbox = JSON.parse(localStorage.getItem('inbox')) || [];
+        inbox.unshift(`${new Date().toLocaleString()} - ${currentUser.name}: ${msg}`);
+        localStorage.setItem('inbox', JSON.stringify(inbox));
+        document.getElementById('messageInput').value = '';
+        loadMessages();
+      }
+    }
+
+    function loadMessages() {
+      const inbox = JSON.parse(localStorage.getItem('inbox')) || [];
+      document.getElementById('inboxMessages').innerHTML = inbox.map(m => `<div class='message'>${m}</div>`).join('');
+    }
+
+    function addTask() {
+      const title = document.getElementById('taskTitle').value;
+      const desc = document.getElementById('taskDesc').value;
+      if (title && desc) {
+        const tasks = JSON.parse(localStorage.getItem('tasks')) || [];
+        tasks.unshift({ title, desc, by: currentUser.name, date: new Date().toLocaleString() });
+        localStorage.setItem('tasks', JSON.stringify(tasks));
+        document.getElementById('taskTitle').value = '';
+        document.getElementById('taskDesc').value = '';
+        loadTasks();
+      }
+    }
+
+    function loadTasks() {
+      const tasks = JSON.parse(localStorage.getItem('tasks')) || [];
+      document.getElementById('taskList').innerHTML = tasks.map(t => `
+        <div class='task'>
+          <strong>${t.title}</strong><br />
+          ${t.desc}<br />
+          <small>By ${t.by} on ${t.date}</small>
+        </div>
+      `).join('');
+    }
+
+    window.onload = () => {
+      const savedUser = localStorage.getItem('currentUser');
+      if (savedUser) {
+        currentUser = JSON.parse(savedUser);
+        initApp();
+      }
+    }
+  </script>
+</body>
+</html>
